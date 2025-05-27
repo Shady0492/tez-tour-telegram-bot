@@ -1,13 +1,14 @@
 import os
+import json
+from flask import Flask, request, abort
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
     MessageHandler,
-    ContextTypes,
     filters,
+    ContextTypes,
 )
-from flask import Flask, request
 
 # --- ЯЗЫКОВЫЕ НАСТРОЙКИ ---
 
@@ -112,41 +113,54 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(MESSAGES[lang]['welcome'], reply_markup=get_keyboard(lang))
 
 
-# --- ЗАПУСК С WEBHOOK (для Render) ---
+# --- Flask сервер и Telegram webhook ---
+
+flask_app = Flask(__name__)
+application = None  # Глобальная переменная для Telegram Application
+
+@flask_app.route("/webhook", methods=["POST"])
+def webhook():
+    if request.method == "POST":
+        if not application:
+            abort(500)
+
+        json_data = request.get_json(force=True)
+        update = Update.de_json(json_data, application.bot)
+        application.update_queue.put_nowait(update)
+        return "OK"
+    else:
+        abort(405)
+
 
 async def main():
+    global application
+
     TOKEN = os.getenv("BOT_TOKEN")
     if not TOKEN:
         raise ValueError("BOT_TOKEN not set in environment variables")
 
-    app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    application = ApplicationBuilder().token(TOKEN).build()
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    # Webhook address from Render
-    webhook_url = os.getenv("RENDER_EXTERNAL_URL") + "/webhook"
-    await app.bot.set_webhook(webhook_url)
-    await app.start()
-    print("Bot started with webhook:", webhook_url)
+    webhook_url = os.getenv("RENDER_EXTERNAL_URL")
+    if not webhook_url:
+        raise ValueError("RENDER_EXTERNAL_URL not set in environment variables")
 
+    webhook_url += "/webhook"
 
-# --- Flask сервер для Render Web Service ---
+    await application.bot.set_webhook(webhook_url)
 
-flask_app = Flask(__name__)
-application = None  # Telegram app instance
-
-@flask_app.route("/webhook", methods=["POST"])
-def webhook():
-    if application:
-        request_data = request.get_data().decode("utf-8")
-        application.update_queue.put_nowait(request_data)
-    return "ok"
-
-# --- Запуск Telegram и Flask вместе ---
+    # Инициализация и запуск без polling
+    await application.initialize()
+    await application.start()
+    print(f"Bot started with webhook at {webhook_url}")
 
 if __name__ == "__main__":
     import asyncio
-
-    asyncio.run(main())
     from waitress import serve
+
+    loop = asyncio.get_event_loop()
+    loop.create_task(main())
+
     serve(flask_app, host="0.0.0.0", port=10000)
