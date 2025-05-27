@@ -117,7 +117,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def main():
     TOKEN = os.getenv("7814465556:AAHPZfY0nh56gOrs-fLjxJ8XUAiFnwgNsmg")
     if not TOKEN:
-        raise ValueError("7814465556:AAHPZfY0nh56gOrs-fLjxJ8XUAiFnwgNsmg not set in environment variables")
+        raise ValueError("BOT_TOKEN not set in environment variables")
 
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
