@@ -130,7 +130,7 @@ def main():
     PORT = int(os.getenv("PORT", "8443"))
     WEBHOOK_URL = f"https://tez-tour-telegram-bot.onrender.com/{7814465556:AAHPZfY0nh56gOrs-fLjxJ8XUAiFnwgNsmg}"
 
-    app = ApplicationBuilder().token(7814465556:AAHPZfY0nh56gOrs-fLjxJ8XUAiFnwgNsmg).build()
+    app = ApplicationBuilder().token("7814465556:AAHPZfY0nh56gOrs-fLjxJ8XUAiFnwgNsmg").build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
