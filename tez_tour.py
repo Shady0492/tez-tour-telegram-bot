@@ -152,11 +152,18 @@ async def main():
     print(f"Bot started with webhook {webhook_url}")
 
 if __name__ == "__main__":
+    import os
     import waitress
     import threading
 
+    import asyncio
     loop = asyncio.new_event_loop()
     threading.Thread(target=loop.run_forever, daemon=True).start()
 
     asyncio.run(main())
+
+    # Получаем порт из переменной окружения (Render его задаёт автоматически)
+    port = int(os.environ.get("PORT", 10000))
+
+    # Запускаем Flask-сервер на этом порту
     waitress.serve(flask_app, host="0.0.0.0", port=port)
