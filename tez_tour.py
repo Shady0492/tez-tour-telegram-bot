@@ -59,7 +59,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(MESSAGES[lang]['welcome'], reply_markup=get_keyboard(lang))
 
 def main():
-    TOKEN = os.getenv("BOT_TOKEN")  # читаем токен из переменной окружения
+    TOKEN = os.getenv("7814465556:AAHPZfY0nh56gOrs-fLjxJ8XUAiFnwgNsmg")  # читаем токен из переменной окружения
     if not TOKEN:
         print("Error: BOT_TOKEN not set in environment variables")
         return
