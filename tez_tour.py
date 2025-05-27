@@ -1,17 +1,13 @@
 import os
 import asyncio
+import threading
 from flask import Flask, request
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import (
-    Application,
-    CommandHandler,
-    MessageHandler,
-    ContextTypes,
-    filters,
+    ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 )
 
 # --- ЯЗЫКОВЫЕ НАСТРОЙКИ ---
-
 LANGUAGES = ['Русский 🇷🇺', 'Română 🇷🇴']
 
 MESSAGES = {
@@ -113,57 +109,43 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(MESSAGES[lang]['welcome'], reply_markup=get_keyboard(lang))
 
 
-# --- Flask сервер ---
+# --- Flask сервер и Webhook ---
 
 flask_app = Flask(__name__)
-application = None  # глобальная переменная для telegram Application
+application = None
 
 @flask_app.route("/webhook", methods=["POST"])
 def webhook():
-    if application is None:
-        return "Application not initialized", 500
-
-    update = Update.de_json(request.get_json(force=True), application.bot)
-    asyncio.create_task(application.update_queue.put(update))
-    return "OK"
+    if application:
+        application.update_queue.put_nowait(request.get_data().decode("utf-8"))
+    return "ok"
 
 async def main():
     global application
-
     TOKEN = os.getenv("BOT_TOKEN")
     if not TOKEN:
-        raise ValueError("BOT_TOKEN not set in environment variables")
+        raise ValueError("BOT_TOKEN is not set")
 
-    application = Application.builder().token(TOKEN).build()
-
+    application = ApplicationBuilder().token(TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    # Устанавливаем webhook
-    url = os.getenv("RENDER_EXTERNAL_URL")
-    if not url:
-        raise ValueError("RENDER_EXTERNAL_URL not set in environment variables")
-    webhook_url = f"{url}/webhook"
+    # Установка webhook
+    webhook_url = os.getenv("RENDER_EXTERNAL_URL", "") + "/webhook"
     await application.bot.set_webhook(webhook_url)
 
-    # Запускаем бота (без polling)
     await application.initialize()
     await application.start()
-    print(f"Bot started with webhook {webhook_url}")
+    await application.updater.start_polling()
+
+# --- Запуск ---
 
 if __name__ == "__main__":
-    import os
-    import waitress
-    import threading
-
-    import asyncio
     loop = asyncio.new_event_loop()
     threading.Thread(target=loop.run_forever, daemon=True).start()
 
     asyncio.run(main())
 
-    # Получаем порт из переменной окружения (Render его задаёт автоматически)
+    from waitress import serve
     port = int(os.environ.get("PORT", 10000))
-
-    # Запускаем Flask-сервер на этом порту
-    waitress.serve(flask_app, host="0.0.0.0", port=port)
+    serve(flask_app, host="0.0.0.0", port=port)
