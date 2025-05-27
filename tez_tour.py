@@ -115,7 +115,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # --- ЗАПУСК С WEBHOOK (для Render) ---
 
 async def main():
-    TOKEN = os.getenv("7814465556:AAHPZfY0nh56gOrs-fLjxJ8XUAiFnwgNsmg")
+    TOKEN = os.getenv("BOT_TOKEN")
     if not TOKEN:
         raise ValueError("BOT_TOKEN not set in environment variables")
 
