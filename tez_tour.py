@@ -159,4 +159,4 @@ if __name__ == "__main__":
     threading.Thread(target=loop.run_forever, daemon=True).start()
 
     asyncio.run(main())
-    waitress.serve(flask_app, host="0.0.0.0", port)
+    waitress.serve(flask_app, host="0.0.0.0", port=port)
